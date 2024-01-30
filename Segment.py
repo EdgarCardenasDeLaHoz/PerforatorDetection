@@ -3,11 +3,13 @@ import numpy as np
 
 import glob as glob
 
-from . import im_proc
+import im_proc
 import matplotlib.pyplot as plt
 from matplotlib import cm
 
 from scipy import ndimage as ndi
+
+import cv2
 
 def label2rgb(L):
     if L.dtype == bool: L,_ = ndi.label(L)
@@ -48,9 +50,8 @@ def label_nearest(label, radius=10, blockSeeds = True):
     return labels_out    
 
 
-def label_preop(im, tx=-1):
+def label_preop(im, tx=-1, w=3):
 
-    w = 5
     im0 = im[0:w].mean(axis=0)
     imx = im[(tx-w):(tx)].mean(axis=0)  
     dPred = 1.*imx - im0
@@ -61,11 +62,15 @@ def label_preop(im, tx=-1):
     bFlap = label_flap(im0, dPred)
     bFlap2 = im_proc.bi_erode(bFlap,(5),.3) 
     if bFlap2.sum()==0: return np.zeros((4,) + im0.shape)
+
     bNavel = label_navel(im0, dPred, bFlap2)
-    bFlap2 = bFlap2 & ~bNavel
+    bFlap2 = bFlap2 & ~im_proc.bi_dilate(bNavel,5,0.5)
+
+    bFalse = label_false(im0,dPred,bFlap2)
+    bFlap2 = bFlap2 & ~im_proc.bi_dilate(bFalse,5,0.5)
+
     bPerf  = label_pref(imx,dPred,bFlap2)
     bFlap2  = bFlap2 & ~bPerf
-    bFalse = label_false(im0,dPred,bFlap2)
 
     classes = np.array([bFlap ,bNavel,bPerf,bFalse])
     
@@ -111,27 +116,34 @@ def label_navel(im0, dPred, bFlap):
     bNav = im_proc.area_filter(bNav,10,5000)>0
     bNav = im_proc.get_largest(bNav)>0
     
+    
     return bNav
 
 def label_pref(imx,dPred,bFlap):
     
-    x = imx[bFlap]
-
-    pref_thr = np.median(x)+1*x.std() #90
-    x = dPred[bFlap]
-    dpref_thr = np.median(x)+1*x.std() #90
+    x = imx[bFlap] 
+    x = x[x>0]
+    pref_thr = np.median(x)+0.5*x.std() #90
     bPref = imx > pref_thr
+
+    x = dPred[bFlap]
+    x = x[x>0]
+    dpref_thr = np.median(x)+0.8*x.std() #90
     bPref = bPref & (dPred>dpref_thr)
     bPref = bPref & bFlap
-    bPref = im_proc.area_filter(bPref,50,5000)>0
+    bPref = im_proc.area_filter(bPref,150,5000)>0
+
+    if 0:
+        plt.imshow(np.hstack((imx,2*dPred)))
     
     return bPref
     
 def label_false(im0,dPred,bFlap):
     x = im0[bFlap]
-    dx = dPred[bFlap]
     mis_thr = x.mean()+0.8*x.std() #45
-    dmis_thr = dx.mean()-1*dx.std() #55
+
+    dx = dPred[bFlap]
+    dmis_thr = dx.mean()-0.5*dx.std() #55
     bMiss = (im0 > mis_thr) & (dPred<dmis_thr)
     bMiss = bMiss & bFlap
     bMiss = im_proc.area_filter(bMiss,50)>0
@@ -164,12 +176,10 @@ def label_nearest(label):
 #  Plotting 
 # ######################################   
 
-def draw_labels(im, classes, ax=None):
+def draw_labels(im, classes, tx=-1, ax=None):
 
-    tx = -1
-    im0 = im[0:5].mean(axis=0)
-    imx = im[(tx-10):(tx-5)].mean(axis=0)  
-
+    im0 = im[0:3].mean(axis=0)
+    imx = im[(tx-3):(tx)].mean(axis=0)  
 
     dPred = 1.*imx - im0
     
@@ -189,11 +199,8 @@ def draw_labels(im, classes, ax=None):
     draw = np.vstack((draw1,draw2))
     draw = draw.astype(np.uint8)
 
-    if ax is None:
-        ax = plt.axes()
+    return draw
 
-    ax.imshow(draw, cmap="jet")
-    ax.axis("off")    
 #################################################    
 def plot_measurements(measurements):
     plt.figure()
