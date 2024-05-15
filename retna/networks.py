@@ -106,7 +106,7 @@ class V_Net(nn.Module):
         return out
 
     def train_model(self, data_loader, optimizer=None, num_epochs=10):
-        train_model(self, data_loader, optimizer, num_epochs)
+        train_model(self, data_loader, optimizer=optimizer, num_epochs=num_epochs)
 
     def eval_file(self, filename ):
         return eval_file(self,filename)

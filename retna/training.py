@@ -25,7 +25,7 @@ def train_model(model, Loader, optimizer=None, cur_epoch = 0, num_epochs=10, n_s
     print("Start Loss:" , best_loss)
     for epoch in range(num_epochs):
 
-        print('Epoch {}/{}'.format(cur_epoch+epoch+1,cur_epoch+ num_epochs), end = "\t")
+        print('Epoch {}/{}'.format(cur_epoch+epoch+1, cur_epoch+ num_epochs), end = "\t")
 
         model = iterate_epoch(model,Loader,optimizer, n_select_train, n_train_cycles)
         #evaluate_model(model,Loader, n_select=10)

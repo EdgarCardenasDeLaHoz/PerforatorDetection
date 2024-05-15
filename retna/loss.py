@@ -16,11 +16,13 @@ def calc_loss(pred, target, method=None, select_channel=None):
         loss = dice_loss(pred, target)
 
     loss[:,0] = 0
+    loss[:,1] = loss[:,1]*0.5
+    loss[:,2] = loss[:,2]*2
 
     loss = loss.mean()       
     return loss
 
-def dice_loss(pred, target, smooth = .0001):
+def dice_loss(pred, target, smooth = .00000000001):
 
     if pred.ndim == 3: pred = pred[None,:]
     if target.ndim == 3: target = target[None,:]

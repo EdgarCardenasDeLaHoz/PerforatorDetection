@@ -110,7 +110,7 @@ def get_sample_tiles(Loader,model=None, n_tiles=5):
             I = colorize_channels(inpt)
             T = colorize_channels(targ)
 
-            tile = np.hstack((I,))
+            tile = np.hstack((I,T))
 
             n = n+1
             if n>n_tiles: break 
@@ -148,6 +148,7 @@ def colorize_channels(I, clrmap=None):
 
     if clrmap is None:
         clrmap = np.array([[1,0.2,0.2],[-0.5,1,0],[0,0,1],[0.7,0.7,0],[1,0,1],[0,1,1]])
+        clrmap = np.array([[0,0,1],[0,1,-1],[1,0,-1],[0,1,1]])
 
     if isinstance(I, torch.Tensor):  I = I.cpu().detach().numpy()
 

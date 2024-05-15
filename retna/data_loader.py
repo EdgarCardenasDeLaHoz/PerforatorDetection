@@ -18,6 +18,7 @@ from torch.utils import data
 from torchvision import transforms
 from torch.utils.data import Dataset, DataLoader
 from skimage import morphology as mor
+import matplotlib.pyplot as plt
 
 class Data_Handler(Dataset):
 
@@ -118,6 +119,7 @@ class Data_Handler(Dataset):
                 targ_im = area_filter(~targ_im, min_size=self.fill_area )==0
 
         if self.remap_label is not None:
+            print(targ_im.shape)
             targ_im = relabel(targ_im,self.remap_label)
 
         return targ_im
@@ -128,7 +130,7 @@ class Data_Handler(Dataset):
             idx = self.select(idx)
             (fn, t) = self.fns[idx]
             fn = fn.lower()
-            if '.jpg' in fn or '.png' in fn: im_cat = self.load_data(idx)            
+            if '.jpg' in fn or '.png' in fn or ".tif" in fn: im_cat = self.load_data(idx)            
             elif '.h5' in fn: im_cat = self.load_data(fn,t)
             else : print("filetype not found")
             if im_cat is None: 
@@ -158,11 +160,8 @@ class Data_Handler(Dataset):
     def randomize_data(self, im_cat ):
 
         force_label = self.force_label 
-        print("s")
 
         if self.randomize:
-
-            print("s")
 
             scale = np.random.uniform(self.scale_range[0], self.scale_range[1])
 
@@ -215,6 +214,7 @@ class H5_Handler(Data_Handler):
         if len(dsets) == 1:  dsets.append(dsets[0])
         ## Load Input
         input_im = read_h5( fn, dataset=dsets[0], t=t, c=chans[0]) 
+        #if input_im.ndim == 3: input_im=input_im[None,:]
 
         if input_im is None: return None
         if input_im.dtype == np.uint8: input_im = input_im/256.
@@ -226,10 +226,8 @@ class H5_Handler(Data_Handler):
             return (input_im, targt_im)
 
         ## Load Target
-        targt_im = read_h5( fn, dataset=dsets[1], t=t, c=chans[1]) 
-        if targt_im is None: ## Maybe do in a smarter way. 
-            targt_im = read_h5( fn, dataset=dsets[1], t=0, c=chans[1]) 
-            if targt_im is None: return None
+        targt_im = read_h5( fn, dataset=dsets[1], t=None, c=None) 
+        #if targt_im.ndim == 3: targt_im=targt_im[None,:]
 
         if targt_im.dtype == np.uint8:  
             if targt_im.max()>1:         targt_im = targt_im/256.
@@ -239,6 +237,7 @@ class H5_Handler(Data_Handler):
         ## Set the images to the same size:
         sz_in = input_im[0].shape
         sz_tg = targt_im[0].shape
+
         if sz_in != sz_tg:
             targt_im = resize_to_base(targt_im, size_out=sz_in)
         
@@ -261,6 +260,7 @@ class Image_Handler(Data_Handler):
             targ_fns = [fn for fn in files if fn.find("_label.tif") != -1]
         
         elif '.tif' in files[0]:
+            targ_fns = [fn for fn in files if fn.find("_label.tif") != -1]
             inpt_fns = [fns.replace("label","input") for fns in targ_fns]
 
         self.fns = list(zip(inpt_fns,targ_fns))
@@ -272,13 +272,20 @@ class Image_Handler(Data_Handler):
         inpt_fn, trgt_fn = self.fns[idx]
 
         inpt_im = np.array( io.imread( inpt_fn ))
-        inpt_im = inpt_im.transpose((2,0,1))
+
+        if inpt_im.ndim ==2: inpt_im = inpt_im[None]
+        if inpt_im.shape[-1]==3:
+            inpt_im = inpt_im.transpose((2,0,1))
         inpt_im = inpt_im/255
         inpt_im = resize_to_base( inpt_im, scale)
         
+
+        #######
         targ_im = np.array( io.imread( trgt_fn ))
         targ_im = expand_label(targ_im)
         targ_im = resize_to_base( targ_im, scale)
+
+
 
         return (inpt_im, targ_im)
 
@@ -365,6 +372,7 @@ def expand_label(label_in, n_chans=None ):
 def relabel(im,vmap):
 
     im = im.transpose(1,2,0)
+    print(im.shape)
     im = np.dot(im,vmap)
     im = im.transpose(2,0,1)
     return im 
